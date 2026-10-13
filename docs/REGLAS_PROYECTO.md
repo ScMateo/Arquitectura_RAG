@@ -1,6 +1,6 @@
 # Reglas de Proyecto - Arquitectura_RAG (Sistema CvLAC)
 
-> **Versión:** 1.0 | **Fecha:** 2026-09-19 | **Stack:** Python 3.12 + FastAPI + ChromaDB + Gemini + React 19 + Vite
+> **Versión:** 1.1 | **Fecha:** 2026-10-12 | **Stack:** Python 3.12 + FastAPI + Qdrant + Gemini 2.5 Flash + React 19 + Vite
 > Este documento es **normativo**. Todo PR que no cumpla será rechazado. Define cómo se estructura el código, cómo se nombra y cómo se comenta para garantizar SOLID, mantenibilidad y trazabilidad con las HU-01 a HU-10.
 
 ---
@@ -11,7 +11,7 @@ Sistema RAG como alternativa al buscador tradicional de CvLAC. Debe cumplir:
 - **HE.001 Interfaz:** HU-01, HU-02
 - **HE.002 Funcionalidad:** HU-03 (links), HU-08 (resumen), HU-10 (referenciación)
 - **HE.003 Consultas:** HU-04 (específica), HU-05 (general)
-- **HE.004 Razonamiento:** HU-06 (libre), HU-07 (historial 10 + análisis), HU-09 (acrónimos)
+- **HE.004 Razonamiento:** HU-06 (libre), HU-07 (historial + análisis), HU-09 (acrónimos)
 
 Cualquier cambio debe mapear explícitamente a una HU y a una tarea del backlog del Excel.
 
@@ -33,7 +33,7 @@ Arquitectura_RAG/
 │   │   ├── services/       # Lógica de orquestación reutilizable
 │   │   └── use_cases/      # Un caso por historia: ChatUseCase, SummarizeUseCase, CiteSourcesUseCase
 │   ├── infrastructure/     # Adaptadores (implementan domain/interfaces)
-│   │   ├── vectorstore/    # ChromaAdapter
+│   │   ├── vectorstore/    # QdrantAdapter
 │   │   ├── llm/            # GeminiAdapter
 │   │   ├── ingestion/      # cleaner.py, chunker.py, normalizer.py (HU-09)
 │   │   └── repositories/   # CvLACRepository
@@ -57,11 +57,11 @@ Arquitectura_RAG/
 
 | Principio | Regla Concreta | Ejemplo |
 |-----------|----------------|---------|
-| **S - Single Responsibility** | 1 archivo = 1 responsabilidad. Máx 200 líneas/archivo, 1 clase pública/archivo | `cleaner.py` solo limpia, no hace chunking. `ChatUseCase` solo orquesta, no llama directo a `Chroma` |
+| **S - Single Responsibility** | 1 archivo = 1 responsabilidad. Máx 200 líneas/archivo, 1 clase pública/archivo | `cleaner.py` solo limpia, no hace chunking. `ChatUseCase` solo orquesta, no llama directo a `Qdrant` |
 | **O - Open/Closed** | Abierto a extensión, cerrado a modificación. Usa Strategy/Adapter | Nuevo LLM = crear `OpenAIAdapter implements ILLMProvider`, no tocar `GenerationService` |
-| **L - Liskov** | Cualquier implementación sustituye a la interfaz sin romper `use_cases` | `FAISSAdapter` y `ChromaAdapter` pasan los mismos tests de `IVectorStore` |
+| **L - Liskov** | Cualquier implementación sustituye a la interfaz sin romper `use_cases` | `FAISSAdapter` y `QdrantAdapter` pasan los mismos tests de `IVectorStore` |
 | **I - Interface Segregation** | Interfaces pequeñas y específicas | `ISearch`, `ISummarize` separadas, no `ILLM_GOD` con 10 métodos |
-| **D - Dependency Inversion** | Los módulos de alto nivel dependen de abstracciones | `ChatUseCase` recibe `IVectorStore` por constructor (inyección), no `from chroma import Chroma` |
+| **D - Dependency Inversion** | Los módulos de alto nivel dependen de abstracciones | `ChatUseCase` recibe `IVectorStore` por constructor (inyección), no `from qdrant_client import QdrantClient` |
 
 ---
 
@@ -72,7 +72,7 @@ Arquitectura_RAG/
 | Elemento | Convención | Ejemplo Correcto | Incorrecto |
 |----------|------------|------------------|------------|
 | Archivo/Módulo | `snake_case.py` | `retrieval_service.py`, `acronym_normalizer.py` | `RetrievalService.py` |
-| Clase | `PascalCase` | `Researcher`, `ChromaAdapter`, `ChatUseCase` | `researcher` |
+| Clase | `PascalCase` | `Researcher`, `QdrantAdapter`, `ChatUseCase` | `researcher` |
 | Interfaz/Protocolo | `I` + `PascalCase` | `IVectorStore`, `ILLMProvider` | `VectorStoreInterface` |
 | Función/Método | `snake_case` verbo + sustantivo | `search_by_theme()`, `normalize_acronym()` | `Search()` |
 | Variable | `snake_case` sustantiva | `researcher_name`, `filtered_docs` | `researcherName`, `x` |
@@ -143,7 +143,7 @@ class ChatUseCase:
 
         Args:
             query: Pregunta en lenguaje natural (HU-06 libre).
-            history: Últimos 10 mensajes (criterio HU-07-4).
+            history: Últimas 5 interacciones mínimo (criterio HU-07-4); se adopta 10 mensajes por margen.
 
         Returns:
             ChatResponse con `answer` y `sources` (HU-10).
@@ -193,8 +193,8 @@ export const SourceList = ({ sources }: Props) => {}
 2.  **Sin números mágicos:** `MAX_HISTORY = 10` en `core/constants.py`, no `[-10:]` suelto.
 3.  **Manejo de errores:** No `except: pass`. Usa excepciones de dominio `DomainError`, `NotFoundError` en `core/exceptions.py`.
 4.  **Logging:** Usa `logger.info("HU-07 history_len=%s", len(history))`, no `print`. Nivel `INFO` para flujo, `DEBUG` para vectores.
-5.  **Config:** Nunca hardcodear `GOOGLE_API_KEY`, `CHROMA_PATH`. Usa `core/config.py` con `pydantic-settings` + `.env`.
-6.  **Formato:** `black`, `isort`, `flake8`, `mypy --strict` (backend) | `eslint + prettier` (frontend). Se ejecuta en pre-commit.
+5.  **Config:** Nunca hardcodear `GOOGLE_API_KEY`, `QDRANT_URL`. Usa `core/config.py` con `pydantic-settings` + `.env`.
+6.  **Formato:** `ruff`, `mypy --strict` (backend) | `eslint + prettier` (frontend). Se ejecuta en pre-commit.
 7.  **Sin código muerto:** Si no se usa, se borra. No `frontend_old`.
 
 ---
@@ -204,18 +204,18 @@ export const SourceList = ({ sources }: Props) => {}
 - **Endpoints:** Solo en `api/v1/endpoints/`. Un archivo por recurso `chat.py`, `health.py`. No lógica de negocio aquí, solo `use_case.execute()`.
 - **Validación:** Todo `Request` con `Pydantic BaseModel` con `Field(description=...)`.
 - **Inyección:** Usa `FastAPI Depends` para inyectar `IVectorStore`.
-- **Ingesta:** `infrastructure/ingestion/` debe ser idempotente. `cleaner.py` (HU-09 normaliza), `chunker.py` (estrategia `RecursiveCharacter` con `chunk_size=1500, overlap=500` documentada), `indexer.py`.
+- **Ingesta:** `infrastructure/ingestion/` debe ser idempotente. `cleaner.py` (HU-09 normaliza), `chunker.py` (segmentación por unidad lógica), `indexer.py`. Los campos de entrada siguen el contrato de `docs/REGLAS_DATOS_CSV.md`.
 
 ## 8. Frontend - Reglas Específicas
 
 - **Componentes:** `components/ui` son dumb (solo props). `features/chat/components` son smart (usan hooks).
-- **Estado:** `useConversationHistory` guarda 10 mensajes (HU-07-4) en `localStorage` + memoria. No global mutable.
+- **Estado:** `useConversationHistory` guarda el contexto de las últimas interacciones (HU-07-4, mínimo 5) en `localStorage` + memoria. No global mutable.
 - **API:** Todo fetch en `services/chatApi.ts`, no en componentes. Tipado `ChatRequest/ChatResponse`.
 - **Links:** HU-03-2: URL completo visible y copiable. Usa `<a href={url} target="_blank" rel="noopener">`.
 
 ## 9. Testing (Obligatorio por HU)
 
-- **Ubicación:** `backend/tests/unit` (mocks de puertos) y `tests/integration` (Chroma real efímero).
+- **Ubicación:** `backend/tests/unit` (mocks de puertos) y `tests/integration` (Qdrant real efímero).
 - **Consultas de prueba (p.7 doc):** Cada PR que toque retrieval debe pasar las 20 consultas (puntuales, generales, relacionales, comparativas) como test parametrizado.
 - **Cobertura mínima:** 80% en `domain` y `application`.
 
@@ -230,7 +230,7 @@ main (protegida)
 
 - **Ramas:** `feature/HU-XX-descripcion`, `fix/HU-XX`, `docs/...`
 - **No push directo a `main`.** Siempre PR con 1 aprobación.
-- **`.gitignore` obligatorio:** `venv/`, `__pycache__/`, `.env`, `data/processed/chroma.sqlite3`, `frontend/node_modules/`, `dist/`.
+- **`.gitignore` obligatorio:** `venv/`, `__pycache__/`, `.env`, `data/processed/qdrant_storage/`, `frontend/node_modules/`, `dist/`.
 
 ## 11. Checklist Antes de Merge
 
@@ -239,7 +239,7 @@ main (protegida)
 - [ ] ¿Nombres según §4?
 - [ ] ¿Docstring Google/JSDoc con Args/Returns/HU?
 - [ ] ¿Tests de las 20 consultas si toca RAG?
-- [ ] ¿`black && mypy && pytest` pasa?
+- [ ] ¿`ruff && mypy && pytest` pasa?
 - [ ] ¿No expone `.env` ni `GOOGLE_API_KEY`?
 - [ ] ¿Frontend muestra `sources` con URL (HU-10) si aplica?
 
@@ -251,5 +251,5 @@ main (protegida)
 - Clean Architecture (Robert C. Martin)
 - Conventional Commits
 - Criterios de aceptación HU-01 a HU-10 (doc Word)
-
-> **Próximo paso:** Crear `CONTRIBUTING.md` corto que apunte aquí y `scripts/lint.sh` para validar automáticamente.
+- `docs/REGLAS_DATOS_CSV.md` (contrato de datos)
+- `docs/REQUISITOS_INFRAESTRUCTURA.md` (despliegue Docker)
