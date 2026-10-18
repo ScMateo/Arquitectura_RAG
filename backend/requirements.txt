@@ -22,3 +22,6 @@ ruff
 mypy
 pytest
 pytest-cov
+
+# Evaluation harness (evaluation/, PLAN_VALIDACION.md)
+psutil

@@ -2,6 +2,7 @@
 
 from app.application.services.retrieval_service import RetrievalService
 from app.domain.value_objects.query_analysis import QueryAnalysis
+from app.domain.value_objects.section import Section
 from app.domain.value_objects.query_type import QueryType
 from app.infrastructure.reranking.weighted_reranker import WeightedReranker
 from tests.helpers import (
@@ -66,6 +67,24 @@ def test_retrieve_applies_author_filter_for_specific_query() -> None:
 
     assert store.last_search is not None
     assert store.last_search["author"] == "Juan Perez"
+
+
+def test_retrieve_prioritizes_requested_section_for_specific_query() -> None:
+    normalizer = _SpyNormalizer()
+    llm = FakeLLMProvider(
+        analysis=QueryAnalysis(query_type=QueryType.SPECIFIC, researcher_name="Juan Perez")
+    )
+    store = FakeVectorStore(
+        results=[
+            make_chunk(section=Section.ARTICULOS, score=0.10),
+            make_chunk(section=Section.REDES_SOCIALES, score=0.99),
+        ]
+    )
+    service = _build_service(normalizer, llm, store)
+
+    result = service.retrieve("redes sociales de juan perez")
+
+    assert result[0].section is Section.REDES_SOCIALES
 
 
 def test_retrieve_truncates_to_top_k_final() -> None:

@@ -10,7 +10,7 @@ from app.application.services.retrieval_service import RetrievalService
 from app.application.use_cases.chat_use_case import ChatUseCase
 from app.core.config import get_settings
 from app.infrastructure.conversation import InMemoryConversationStore
-from app.infrastructure.embeddings import HuggingFaceAdapter
+from app.infrastructure.embeddings import Bm25SparseEncoder, HuggingFaceAdapter
 from app.infrastructure.ingestion import (
     AcronymNormalizer,
     Cleaner,
@@ -33,11 +33,18 @@ def _get_embedding_provider() -> HuggingFaceAdapter:
 
 
 @lru_cache
+def _get_sparse_encoder() -> Bm25SparseEncoder:
+    # Léxico para la búsqueda híbrida (RT-2): BM25 sparse servido por Qdrant.
+    return Bm25SparseEncoder()
+
+
+@lru_cache
 def _get_vector_store() -> QdrantAdapter:
     settings = get_settings()
     return QdrantAdapter(
         url=settings.qdrant_url,
         collection_name=settings.qdrant_collection,
+        sparse_encoder=_get_sparse_encoder(),
     )
 
 
@@ -47,6 +54,9 @@ def _get_llm_provider() -> GeminiAdapter:
     return GeminiAdapter(
         api_key=settings.google_api_key.get_secret_value(),
         model=settings.gemini_model,
+        timeout_ms=settings.llm_timeout_ms,
+        analysis_temperature=settings.llm_temperature_analysis,
+        generation_temperature=settings.llm_temperature_generation,
     )
 
 

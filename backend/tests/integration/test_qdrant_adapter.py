@@ -11,6 +11,7 @@ from qdrant_client import QdrantClient
 
 from app.core.config import get_settings
 from app.domain.value_objects.section import Section
+from app.infrastructure.embeddings import Bm25SparseEncoder
 from app.infrastructure.vectorstore.qdrant_adapter import QdrantAdapter
 from tests.helpers import make_chunk
 
@@ -31,6 +32,17 @@ def qdrant_url() -> str:
 def adapter(qdrant_url: str) -> QdrantAdapter:
     collection = f"test_{uuid.uuid4().hex[:8]}"
     yield QdrantAdapter(url=qdrant_url, collection_name=collection)
+    QdrantClient(url=qdrant_url).delete_collection(collection)
+
+
+@pytest.fixture
+def hybrid_adapter(qdrant_url: str) -> QdrantAdapter:
+    collection = f"test_{uuid.uuid4().hex[:8]}"
+    yield QdrantAdapter(
+        url=qdrant_url,
+        collection_name=collection,
+        sparse_encoder=Bm25SparseEncoder(),
+    )
     QdrantClient(url=qdrant_url).delete_collection(collection)
 
 
@@ -87,4 +99,34 @@ def test_section_filter_is_applied(adapter: QdrantAdapter) -> None:
 
 def test_add_without_chunks_is_a_noop(adapter: QdrantAdapter) -> None:
     adapter.add([], [])
+
+
+def test_hybrid_search_returns_fused_results(hybrid_adapter: QdrantAdapter) -> None:
+    hybrid_adapter.add(
+        [
+            make_chunk(content="estudios sobre salud publica", author="Ana"),
+            make_chunk(content="investigacion en energia solar", author="Luis"),
+        ],
+        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+    )
+
+    results = hybrid_adapter.search("salud publica", [1.0, 0.0, 0.0], top_k=10)
+
+    assert results
+    assert results[0].author == "Ana"
+
+
+def test_hybrid_search_applies_author_filter(hybrid_adapter: QdrantAdapter) -> None:
+    hybrid_adapter.add(
+        [
+            make_chunk(content="salud publica", author="Ana"),
+            make_chunk(content="salud publica", author="Luis"),
+        ],
+        [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+    )
+
+    results = hybrid_adapter.search("salud", [1.0, 0.0, 0.0], author="Luis", top_k=10)
+
+    assert results
+    assert all(chunk.author == "Luis" for chunk in results)
 

@@ -5,7 +5,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.application.dto.chat import ChatResponse, SourceDTO
+from app.application.dto.chat import ChatResponse, ChatStreamEvent, SourceDTO
 
 
 class _FakeUseCase:
@@ -21,6 +21,21 @@ class _FakeUseCase:
                 )
             ],
         )
+
+    def execute_stream(self, request) -> Iterator[ChatStreamEvent]:
+        yield ChatStreamEvent(type="token", content=f"eco: {request.message}")
+        yield ChatStreamEvent(
+            type="sources",
+            sources=[
+                SourceDTO(
+                    author="Autor Uno",
+                    section="articulos",
+                    url="https://example.org/cv/1",
+                    excerpt="extracto",
+                )
+            ],
+        )
+        yield ChatStreamEvent(type="done")
 
 
 @pytest.fixture
@@ -52,3 +67,15 @@ def test_chat_returns_answer_and_sources(client: TestClient) -> None:
 def test_chat_requires_message_field(client: TestClient) -> None:
     response = client.post("/api/chat", json={})
     assert response.status_code == 422
+
+
+def test_chat_stream_emits_sse_events(client: TestClient) -> None:
+    response = client.post("/api/chat/stream", json={"message": "hola"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    body = response.text
+    assert body.count("data:") == 3
+    assert '"type":"token"' in body
+    assert '"type":"sources"' in body
+    assert '"type":"done"' in body

@@ -47,5 +47,8 @@ class RetrievalService:
             author=author,
             top_k=self._top_k_retrieval,
         )
-        reranked = self._reranker.rerank(chunks)
+        # Solo en consultas a un investigador concreto la sección solicitada es
+        # un criterio fiable de ordenación; en consultas generales se mantiene la
+        # prioridad fija de sección.
+        reranked = self._reranker.rerank(chunks, normalized if author else None)
         return reranked[: self._top_k_final]

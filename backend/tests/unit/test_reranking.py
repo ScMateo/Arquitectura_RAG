@@ -32,3 +32,19 @@ def test_rerank_handles_none_score() -> None:
     second = make_chunk(section=Section.ARTICULOS, score=0.5)
     result = WeightedReranker().rerank([first, second])
     assert result[0] is second
+
+
+def test_rerank_prioritizes_section_requested_by_query() -> None:
+    articles = make_chunk(section=Section.ARTICULOS, score=0.10)
+    social = make_chunk(section=Section.REDES_SOCIALES, score=0.99)
+    result = WeightedReranker().rerank(
+        [articles, social], query="¿Qué redes sociales tiene registradas?"
+    )
+    assert result[0] is social
+
+
+def test_rerank_keeps_default_priority_when_query_has_no_section() -> None:
+    articles = make_chunk(section=Section.ARTICULOS, score=0.10)
+    social = make_chunk(section=Section.REDES_SOCIALES, score=0.99)
+    result = WeightedReranker().rerank([social, articles], query="Háblame de esta investigadora")
+    assert result[0] is articles

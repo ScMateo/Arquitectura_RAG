@@ -105,4 +105,5 @@ class FakeLLMProvider:
         return self.answer
 
     def stream(self, prompt: str) -> Iterator[str]:
+        self.prompts.append(prompt)
         yield self.answer

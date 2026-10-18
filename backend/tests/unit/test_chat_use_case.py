@@ -78,3 +78,18 @@ def test_second_turn_includes_previous_history_in_prompt() -> None:
     use_case.execute(ChatRequest(message="primer turno", session_id="s"))
     use_case.execute(ChatRequest(message="segundo turno", session_id="s"))
     assert "primer turno" in llm.prompts[-1]
+
+
+def test_execute_stream_emits_tokens_sources_and_done() -> None:
+    use_case, store, _ = _build_use_case()
+
+    events = list(use_case.execute_stream(ChatRequest(message="hola", session_id="s")))
+
+    assert [event.type for event in events] == ["token", "sources", "done"]
+    assert events[0].content == "respuesta"
+    assert events[1].sources is not None
+    assert events[1].sources[0].author == "Autor Uno"
+    assert [message.role for message in store.get("s").messages] == [
+        MessageRole.USER,
+        MessageRole.ASSISTANT,
+    ]

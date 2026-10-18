@@ -35,3 +35,39 @@ SECTION_PRIORITY: dict[str, int] = {
     "redes_sociales": 5,
     "par_evaluador": 5,
 }
+
+# Palabras clave que indican la sección solicitada por una consulta específica,
+# en orden de especificidad (las frases más largas primero). Permiten que el
+# re-ranking priorice la sección realmente preguntada (REQUISITOS_RECUPERACION.md).
+SECTION_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "formacion_complementaria",
+        ("formación complementaria", "formacion complementaria", "curso", "diplomado", "seminario"),
+    ),
+    (
+        "formacion_academica",
+        ("formación académica", "formacion academica", "formación", "formacion", "pregrado", "maestría", "maestria", "doctorado", "título"),
+    ),
+    (
+        "experiencia_profesional",
+        ("experiencia profesional", "experiencia", "cargo", "empleo", "trabajó", "trabajo en"),
+    ),
+    ("identificadores_autor", ("orcid", "identificador")),
+    ("articulos", ("artículo", "articulo", "publicación", "publicacion", "publicado")),
+    ("proyectos", ("proyecto",)),
+    ("trabajos_dirigidos", ("trabajo dirigido", "trabajos dirigidos", "tesis")),
+    ("evento_cientifico", ("evento", "congreso", "ponencia")),
+    ("capitulos_libro", ("capítulo de libro", "capitulo de libro", "capítulo", "capitulo")),
+    ("libros", ("libro",)),
+    ("software", ("software",)),
+    ("productos_tecnologicos", ("producto tecnológico", "producto tecnologico", "productos tecnológicos")),
+    ("procesos_tecnicas", ("proceso", "técnica", "tecnica")),
+    ("asesorias", ("asesoría", "asesoria")),
+    ("redes_conocimiento", ("red de conocimiento", "redes de conocimiento")),
+    ("patentes", ("patente",)),
+    ("insumos_politica", ("insumo", "política pública", "politica publica")),
+    ("desarrollos_web", ("desarrollo web", "aplicación web", "aplicacion web")),
+    ("manuales_guias", ("manual", "guía", "guia")),
+    ("redes_sociales", ("red social", "redes sociales")),
+    ("par_evaluador", ("par evaluador", "evaluador")),
+)

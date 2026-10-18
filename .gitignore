@@ -26,6 +26,9 @@ data/processed/db_index/
 db_index/
 *.sqlite3
 
+# Artefactos generados por el harness de evaluación (corpus y resultados)
+data/processed/*.csv
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

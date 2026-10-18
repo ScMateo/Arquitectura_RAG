@@ -26,9 +26,21 @@ class _QueryAnalysisSchema(BaseModel):
 class GeminiAdapter:
     """Accede al modelo Gemini para analizar y generar respuestas."""
 
-    def __init__(self, api_key: str, model: str = "gemini-3.8-flash") -> None:
-        self._client = genai.Client(api_key=api_key)
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gemini-3.8-flash",
+        timeout_ms: int = 60000,
+        analysis_temperature: float = 0.0,
+        generation_temperature: float = 0.5,
+    ) -> None:
+        self._client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=timeout_ms),
+        )
         self._model = model
+        self._analysis_temperature = analysis_temperature
+        self._generation_temperature = generation_temperature
 
     def analyze_query(self, query: str) -> QueryAnalysis:
         prompt = (
@@ -46,6 +58,7 @@ class GeminiAdapter:
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=_QueryAnalysisSchema,
+                temperature=self._analysis_temperature,
             ),
         )
         if response.text is None:
@@ -64,6 +77,9 @@ class GeminiAdapter:
                 response = self._client.models.generate_content(
                     model=self._model,
                     contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=self._generation_temperature,
+                    ),
                 )
                 if response.text is None:
                     raise RuntimeError("El modelo no devolvió respuesta.")
@@ -79,6 +95,9 @@ class GeminiAdapter:
         for chunk in self._client.models.generate_content_stream(
             model=self._model,
             contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=self._generation_temperature,
+            ),
         ):
             if chunk.text:
                 yield chunk.text

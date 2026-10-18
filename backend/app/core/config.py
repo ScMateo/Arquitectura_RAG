@@ -24,6 +24,9 @@ class Settings(BaseSettings):
         embedding_model_name: Modelo de embeddings (Liskov: intercambiable).
         embedding_device: Dispositivo de ejecución del modelo de embeddings.
         gemini_model: Modelo generativo, con versión fija por reproducibilidad.
+        llm_timeout_ms: Límite de tiempo por solicitud al modelo (ms).
+        llm_temperature_analysis: Temperatura para la clasificación de consultas.
+        llm_temperature_generation: Temperatura para la generación de respuestas.
         chunk_size: Límite máximo de tamaño de una unidad lógica.
         max_history: Ventana conversacional (HU-07-4: mínimo 5, se adopta 10).
         top_k_retrieval: Fragmentos recuperados en la búsqueda.
@@ -65,6 +68,25 @@ class Settings(BaseSettings):
         default="gemini-3.8-flash",
         alias="GEMINI_MODEL",
         description="Modelo generativo con versión fija (reproducibilidad).",
+    )
+
+    # --- LLM optimization (METODOS_OPTIMIZACION.md) ---
+    llm_timeout_ms: int = Field(
+        default=60000,
+        ge=1000,
+        description="Límite de tiempo por solicitud al modelo (ms). Método: timeout.",
+    )
+    llm_temperature_analysis: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Temperatura para la clasificación de consultas (determinista).",
+    )
+    llm_temperature_generation: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Temperatura para la generación de respuestas (redacción natural).",
     )
 
     # --- RAG Strategy ---

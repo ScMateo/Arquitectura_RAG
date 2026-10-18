@@ -188,7 +188,7 @@ flowchart LR
 Etapas:
 
 1. **Composición del prompt:** el `PromptBuilder` combina la instrucción de sistema, el contexto recuperado, el historial conversacional y la consulta.
-2. **Generación:** el `GeminiAdapter` genera la respuesta de manera incremental, con caché del prefijo del sistema y reintentos con espera exponencial.
+2. **Generación:** el `GeminiAdapter` genera la respuesta de manera incremental, con caché implícita del prefijo del sistema y reintentos con espera exponencial.
 3. **Trazabilidad:** se extraen las fuentes empleadas para acompañar la respuesta (HU-10).
 
 ### 5.4 Flujo Completo (End-to-End)

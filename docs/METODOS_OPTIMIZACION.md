@@ -42,14 +42,17 @@ Se selecciona la **limitación del contexto a los fragmentos más relevantes**, 
 
 ### 3.1 Caché de Contexto (Prefijo del Sistema)
 
-El modelo de lenguaje se invoca de manera reiterada con un prefijo de sistema que permanece constante. La caché de contexto permite reutilizar el procesamiento de dicho prefijo entre solicitudes.
+El modelo de lenguaje se invoca de manera reiterada con una instrucción de sistema que permanece constante. La caché de contexto permite reutilizar el procesamiento de dicho prefijo entre solicitudes.
 
 | Método | L1 | L2 | Decisión |
 |---|---|---|---|
 | Sin caché de contexto | Baja | Baja | Descartado |
-| **Caché del prefijo del sistema** | Alta | Alta | Seleccionado |
+| **Caché implícita del prefijo del sistema** | Alta | Alta | Seleccionado |
+| Caché explícita (recurso de contenido en caché) | Alta | Alta | Evolución documentada |
 
-Se selecciona la **caché del prefijo del sistema**. Dado que la instrucción de sistema se mantiene invariable entre solicitudes, su almacenamiento en caché evita su reprocesamiento en cada consulta, lo que reduce tanto la latencia como el costo (criterios L1 y L2). Este método no modifica la lógica de generación y se implementa en la capa de acceso al modelo de lenguaje.
+Se selecciona la **caché implícita del prefijo del sistema**. Los modelos de la familia empleada habilitan de forma automática el reaprovechamiento de prefijos idénticos entre solicitudes, por lo que la instrucción de sistema invariante se reutiliza sin intervención del código, reduciendo la latencia y el costo de cada consulta (criterios L1 y L2). Este método no modifica la lógica de generación y se apoya en la capa de acceso al modelo de lenguaje.
+
+La **caché explícita** (declaración de un recurso de contenido en caché) se documenta como evolución y no se adopta en la versión actual: exige un volumen mínimo de tokens de prefijo (del orden de 1024) que la instrucción de sistema del proyecto, cercana a 50 tokens, no alcanza, de modo que el ahorro no compensaría el costo mínimo de mantener la caché. Su adopción se reconsiderará si el sistema pasa a compartir un contexto base extenso (por ejemplo, el corpus de hojas de vida) entre un número elevado de consultas, escenario en el que el prefijo a reutilizar superaría con holgura el mínimo exigido.
 
 ### 3.2 Selección del Modelo
 
@@ -96,7 +99,7 @@ La clasificación de consultas se formaliza mediante una **salida estructurada**
 |---|---|---|
 | Latencia | Generación incremental (streaming) | L1 |
 | Latencia | Limitación del contexto a los fragmentos relevantes | L1, L2, L4 |
-| Costo | Caché del prefijo del sistema | L1, L2 |
+| Costo | Caché implícita del prefijo del sistema | L1, L2 |
 | Costo | Modelo en versión ligera | L2 |
 | Fiabilidad | Reintentos con espera exponencial | L3 |
 | Fiabilidad | Límite de tiempo y respaldo local | L3 |

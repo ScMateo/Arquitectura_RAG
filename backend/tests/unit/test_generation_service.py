@@ -25,3 +25,13 @@ def test_generate_without_context_still_builds_prompt() -> None:
     GenerationService(llm).generate("q", [], [])
     assert "PREGUNTA: q" in llm.prompts[0]
     assert "CONTEXTO:\n\n" in llm.prompts[0]
+
+
+def test_generate_stream_yields_provider_output_with_same_prompt() -> None:
+    llm = FakeLLMProvider(answer="ok")
+    service = GenerationService(llm)
+
+    deltas = list(service.generate_stream("¿quien?", [make_chunk(content="CONTEXTO_UNO")], []))
+
+    assert deltas == ["ok"]
+    assert "CONTEXTO_UNO" in llm.prompts[-1]
