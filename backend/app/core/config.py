@@ -2,29 +2,33 @@
 
 Centraliza toda la configuración del sistema RAG CvLAC.
 Resuelve REGLAS_PROYECTO.md §6.5: nunca hardcodear keys/paths.
-
-Mapea a HU-07 (MAX_HISTORY=10) y a la estrategia de chunking
-definida en src/ingest_academico.py:22.
 """
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# .env en la raíz del proyecto (Arquitectura_RAG/), independiente del CWD.
+_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
 class Settings(BaseSettings):
     """Configuración única del sistema. Lee .env una sola vez.
 
     Attributes:
-        google_api_key: SecretStr para no exponer en logs (HU-03/10 trazabilidad).
-        chroma_persist_directory: Ruta donde se persiste Chroma (DIP: infra lo consume).
-        embedding_model_name: Modelo HuggingFace para embeddings (Liskov: intercambiable).
-        gemini_model: Modelo generativo (O: extensible a OpenAI sin tocar use_cases).
-        max_history: Ventana conversacional HU-07-4 (10 mensajes).
-        chunk_size: Tamaño de fragmento ingestion strategy.
-        chunk_overlap: Solapamiento para no perder contexto entre chunks.
-        cors_origins: Orígenes permitidos frontend.
+        google_api_key: SecretStr para no exponer en logs.
+        qdrant_url: URL del servidor Qdrant.
+        qdrant_collection: Nombre de la colección vectorial.
+        embedding_model_name: Modelo de embeddings (Liskov: intercambiable).
+        embedding_device: Dispositivo de ejecución del modelo de embeddings.
+        gemini_model: Modelo generativo, con versión fija por reproducibilidad.
+        chunk_size: Límite máximo de tamaño de una unidad lógica.
+        max_history: Ventana conversacional (HU-07-4: mínimo 5, se adopta 10).
+        top_k_retrieval: Fragmentos recuperados en la búsqueda.
+        top_k_final: Fragmentos finales enviados al modelo.
+        cors_origins: Orígenes permitidos del frontend.
     """
 
     # --- LLM / API Keys ---
@@ -35,24 +39,37 @@ class Settings(BaseSettings):
     )
 
     # --- Vector Store ---
-    chroma_persist_directory: str = Field(
-        default="data/processed/chroma",
-        alias="CHROMA_PERSIST_DIR",
-        description="Directorio persistencia ChromaDB.",
+    qdrant_url: str = Field(
+        default="http://localhost:6333",
+        alias="QDRANT_URL",
+        description="URL del servidor Qdrant.",
     )
+    qdrant_collection: str = Field(
+        default="cvlac_researchers",
+        alias="QDRANT_COLLECTION",
+        description="Nombre de la colección vectorial.",
+    )
+
+    # --- Embeddings ---
     embedding_model_name: str = Field(
-        default="sentence-transformers/all-MiniLM-L6-v2",
+        default="intfloat/multilingual-e5-base",
         alias="EMBEDDING_MODEL_NAME",
     )
+    embedding_device: str = Field(
+        default="cpu",
+        alias="EMBEDDING_DEVICE",
+    )
+
+    # --- LLM ---
     gemini_model: str = Field(
-        default="gemini-flash-latest",
+        default="gemini-3.8-flash",
         alias="GEMINI_MODEL",
+        description="Modelo generativo con versión fija (reproducibilidad).",
     )
 
     # --- RAG Strategy ---
     chunk_size: int = Field(default=1500, ge=500, le=4000)
-    chunk_overlap: int = Field(default=500, ge=0, le=1000)
-    max_history: int = Field(default=10, ge=1, le=20, description="HU-07-4: historial 10")
+    max_history: int = Field(default=10, ge=5, le=20, description="HU-07-4: mínimo 5, se adopta 10")
     top_k_retrieval: int = Field(default=20, ge=1, le=50)
     top_k_final: int = Field(default=15, ge=1, le=20)
 
@@ -62,7 +79,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default=["http://localhost:5173"])
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -80,4 +97,4 @@ def get_settings() -> Settings:
     Returns:
         Instancia singleton de Settings validada.
     """
-    return Settings()
+    return Settings()  # type: ignore[call-arg]
