@@ -1,6 +1,6 @@
 # Análisis de Requerimientos Técnicos y Funcionales para la Mejora de la Recuperación de Información
 
-En el siguiente documento se realiza el análisis de los requerimientos técnicos y funcionales orientados a mejorar la recuperación de información en el aplicativo. Este análisis constituye el vínculo entre las necesidades expresadas en las historias de usuario, la información disponible en CvLAC y las herramientas seleccionadas, y define el comportamiento esperado del mecanismo de recuperación.
+Continuando con la planeación del proyecto, se realiza el análisis de los requerimientos técnicos y funcionales orientados a mejorar la recuperación de información en el aplicativo. Este análisis constituye el vínculo entre las necesidades expresadas en las historias de usuario, la información disponible en CvLAC y las herramientas seleccionadas, y define el comportamiento esperado del mecanismo de recuperación.
 
 El propósito de este documento es doble. En primer lugar, caracterizar las limitaciones de la búsqueda tradicional que motivan la mejora. En segundo lugar, establecer los requerimientos funcionales y técnicos que el sistema debe satisfacer, así como las decisiones de diseño del proceso de recuperación.
 
@@ -93,3 +93,20 @@ El re-ranking ordena los fragmentos recuperados para seleccionar los más pertin
 Se selecciona la **ponderación entre la relevancia semántica y la prioridad de la sección**. Este enfoque combina la puntuación de similitud obtenida en la recuperación con la prioridad definida para cada sección de la hoja de vida, de modo que las secciones de mayor valor descriptivo (formación, experiencia, proyectos) se favorezcan sin descartar el resto. No introduce modelos adicionales ni llamadas externas, lo que resulta compatible con el procesamiento en CPU.
 
 El re-ranking mediante un modelo de relevancia (cross-encoder) se documenta como evolución, por su capacidad de mejorar la precisión a cambio de un costo de procesamiento adicional. El re-ranking mediante el modelo de lenguaje se descarta por añadir latencia y llamadas a la API sin una ventaja proporcional en esta etapa.
+
+## 6. Resumen de los Requerimientos
+
+El sistema de recuperación debe satisfacer nueve requerimientos funcionales (RF-1 a RF-9), derivados de las historias de usuario, y siete requerimientos técnicos (RT-1 a RT-7), que definen las condiciones de implementación. El proceso de recuperación se organiza en cinco etapas —preprocesamiento, clasificación, recuperación, re-ranking y generación—, y las decisiones de diseño adoptadas son la búsqueda híbrida, la clasificación mediante salida estructurada y el re-ranking por ponderación de relevancia y prioridad de sección.
+
+## 7. Conclusiones
+
+El análisis permitió traducir las necesidades expresadas en las historias de usuario en requerimientos funcionales y técnicos concretos, y establecer las decisiones de diseño del mecanismo de recuperación. La propuesta supera las limitaciones de la búsqueda tradicional mediante la combinación de búsqueda semántica e híbrida, el filtrado nativo por atributos y la generación de respuestas fundamentadas en las fuentes recuperadas.
+
+Estas decisiones constituyen la base sobre la cual se implementará el mecanismo de recuperación en las etapas siguientes, y se integran de manera coherente con la selección de herramientas y la infraestructura definidas previamente.
+
+## 8. Referencias
+
+- Documento de requisitos funcionales (historias de usuario).
+- Documento de identificación y selección de herramientas.
+- Documento de análisis de la estructura de datos de CvLAC.
+- Documento de requisitos técnicos y de infraestructura.

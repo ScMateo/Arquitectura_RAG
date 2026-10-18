@@ -148,4 +148,4 @@ Estos campos complementan la caracterización del investigador y resultan determ
 
 ### 4.3 Campos excluidos por defecto
 
-Los campos de contribución media o baja (puntaje menor a 17) no se consideran prioritarios para la recopilación inicial, dado que su aplicabilidad es más específica o su contenido suele ser menos descriptivo. Esta exclusión no implica que carezcan de valor, simplemente no presentan una relevancia notoria frente a las necesidades del proyecto.
+Los campos de contribución media o baja (puntaje menor a 17) no se consideran prioritarios para la recopilación inicial, dado que su aplicabilidad es más específica o su contenido suele ser menos descriptivo. Esta exclusión no implica que carezcan de valor: pueden incorporarse en consultas especializadas (industrias creativas, comunicación del conocimiento o transferencia tecnológica) si en etapas posteriores se identifica una necesidad concreta.

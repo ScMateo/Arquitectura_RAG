@@ -253,3 +253,5 @@ main (protegida)
 - Criterios de aceptación HU-01 a HU-10 (doc Word)
 - `docs/REGLAS_DATOS_CSV.md` (contrato de datos)
 - `docs/REQUISITOS_INFRAESTRUCTURA.md` (despliegue Docker)
+
+> **Próximo paso:** Crear `CONTRIBUTING.md` corto que apunte aquí y `scripts/lint.sh` para validar automáticamente.

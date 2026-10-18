@@ -12,7 +12,13 @@ build/
 .mypy_cache/
 .ruff_cache/
 coverage.xml
+.coverage
 htmlcov/
+
+# Scripts locales que contienen fragmentos de credenciales (no subir)
+scripts/check_credentials.sh
+scripts/check_credentials2.sh
+scripts/security_check.sh
 
 # Chroma / Data procesada
 data/processed/chroma.sqlite3

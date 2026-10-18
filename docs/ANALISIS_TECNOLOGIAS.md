@@ -142,13 +142,13 @@ El modelo de lenguaje es responsable de la generación de las respuestas a parti
 
 | Modelo | Tipo | Costo | Reproducibilidad | Decisión |
 |---|---|---|---|---|
-| **`gemini-2.5-flash` (versión fija)** | API propietaria | Gratuito | Alta | Seleccionado |
+| **`gemini-3.8-flash` (versión fija)** | API propietaria | Gratuito | Alta | Seleccionado |
 | `gemini-flash-latest` | API propietaria | Gratuito | Baja (alias móvil) | Descartado |
 | `gpt-4o-mini` | API propietaria | De pago | Alta | Descartado |
 | `claude-3-5-haiku` | API propietaria | De pago | Alta | Descartado |
 | Llama / Mistral (Ollama) | Abierto local | Gratuito | Alta | Alternativa |
 
-Se selecciona **`gemini-2.5-flash`** en una versión fija. Los argumentos que sustentan la decisión son los siguientes:
+Se selecciona **`gemini-3.8-flash`** en una versión fija. Los argumentos que sustentan la decisión son los siguientes:
 
 - Es la única alternativa de acceso gratuito dentro de las APIs propietarias, lo que la hace compatible con el criterio C9.
 - El uso de una versión fija, en contraposición al alias `latest`, garantiza la estabilidad del modelo a lo largo del tiempo y, por tanto, la reproducibilidad del experimento (criterio C10).
@@ -161,15 +161,15 @@ El sistema requiere integrar la recuperación de información con la generación
 
 | Enfoque | Integraciones disponibles | Riesgo de acoplamiento | Decisión |
 |---|---|---|---|
-| **LangChain** | Amplias (Qdrant, embeddings, LLM) | Medio | Seleccionado |
-| LlamaIndex | Amplias (orientado a datos) | Medio | Alternativa |
-| Implementación propia | Ninguna | Bajo | Alternativa |
+| LangChain | Amplias (Qdrant, embeddings, LLM) | Medio | Descartado |
+| LlamaIndex | Amplias (orientado a datos) | Medio | Descartado |
+| **Implementación propia** | Directas (qdrant-client, sentence-transformers, google-genai) | Bajo | Seleccionada |
 
-Se selecciona **LangChain**, específicamente los módulos `langchain-core`, `langchain-qdrant` y `langchain-huggingface`. Los argumentos son los siguientes:
+Se selecciona la **implementación propia mediante adaptadores directos**. Los argumentos son los siguientes:
 
-- Proporciona integraciones estandarizadas con la base de datos vectorial, los modelos de embeddings y los modelos de lenguaje seleccionados en las secciones anteriores, lo que reduce el esfuerzo de desarrollo.
-- LlamaIndex ofrece una orientación más enfocada a la indexación de datos y no presenta una ventaja determinante para este caso de uso.
-- Con el fin de mitigar el riesgo de acoplamiento (criterio C11), el uso de LangChain se encapsulará detrás de interfaces propias del dominio, de modo que las capas de negocio no dependan directamente del framework y este pueda sustituirse sin afectar la lógica del sistema.
+- Las interfaces definidas en el dominio (`IVectorStore`, `IEmbeddingProvider`, `ILLMProvider`) ya proporcionan la abstracción necesaria para integrar los componentes; un framework de orquestación adicional resulta redundante.
+- El uso directo de `qdrant-client`, `sentence-transformers` y `google-genai` reduce el número de dependencias y evita el acoplamiento a una capa intermedia.
+- LangChain y LlamaIndex se descartan porque, si bien ofrecen integraciones estandarizadas, introducen una capa de abstracción que no aporta valor frente a las interfaces propias y aumenta la superficie de dependencias (criterio C11).
 
 ### 2.9 Normalización de Acrónimos
 
@@ -225,8 +225,8 @@ En la siguiente tabla se presentan los resultados obtenidos luego del proceso de
 | Segmentación | Por unidad lógica | C1, C4 |
 | Modelo de embeddings | `intfloat/multilingual-e5-base` | C1, C8, C9 |
 | Base de datos vectorial | Qdrant | C1, C2, C3 |
-| Modelo de lenguaje | `gemini-2.5-flash` (versión fija) | C9, C10 |
-| Orquestación RAG | LangChain (encapsulado) | C11 |
+| Modelo de lenguaje | `gemini-3.8-flash` (versión fija) | C9, C10 |
+| Orquestación RAG | Implementación propia (adaptadores directos) | C11 |
 | Normalización | Basada en evidencia (acrónimos) | C1 |
 | Contexto conversacional | En memoria por sesión | C6, C11 |
 | Calidad de código | Ruff, mypy, pytest | C11 |
