@@ -5,7 +5,7 @@ output for query analysis and retry with exponential backoff (METODOS_OPTIMIZACI
 """
 
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Literal
 
 from google import genai
@@ -52,44 +52,42 @@ class GeminiAdapter:
             "en researcher_name.\n\n"
             f"Consulta: {query}"
         )
-        response = self._client.models.generate_content(
-            model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=_QueryAnalysisSchema,
-                temperature=self._analysis_temperature,
-            ),
-        )
-        if response.text is None:
-            raise ValueError("El modelo no devolvió un análisis estructurado.")
-        result = _QueryAnalysisSchema.model_validate_json(response.text)
+
+        def request_analysis() -> str:
+            response = self._client.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=_QueryAnalysisSchema,
+                    temperature=self._analysis_temperature,
+                ),
+            )
+            if response.text is None:
+                raise ValueError("El modelo no devolvió un análisis estructurado.")
+            return response.text
+
+        raw = self._retry(request_analysis)
+        result = _QueryAnalysisSchema.model_validate_json(raw)
         return QueryAnalysis(
             query_type=QueryType(result.type),
             researcher_name=result.researcher_name,
         )
 
     def generate(self, prompt: str) -> str:
-        max_attempts = 3
-        wait = 1.0
-        for attempt in range(max_attempts):
-            try:
-                response = self._client.models.generate_content(
-                    model=self._model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=self._generation_temperature,
-                    ),
-                )
-                if response.text is None:
-                    raise RuntimeError("El modelo no devolvió respuesta.")
-                return response.text
-            except Exception as exc:
-                if not self._is_retryable(exc) or attempt == max_attempts - 1:
-                    raise
-                time.sleep(wait)
-                wait *= 2
-        raise RuntimeError("No se obtuvo respuesta del modelo.")
+        def request_generation() -> str:
+            response = self._client.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=self._generation_temperature,
+                ),
+            )
+            if response.text is None:
+                raise RuntimeError("El modelo no devolvió respuesta.")
+            return response.text
+
+        return self._retry(request_generation)
 
     def stream(self, prompt: str) -> Iterator[str]:
         for chunk in self._client.models.generate_content_stream(
@@ -102,6 +100,26 @@ class GeminiAdapter:
             if chunk.text:
                 yield chunk.text
 
+    def _retry(
+        self,
+        operation: Callable[[], str],
+        max_attempts: int = 3,
+        base_wait: float = 2.0,
+    ) -> str:
+        """Ejecuta una operación con reintentos ante errores transitorios."""
+        wait = base_wait
+        for attempt in range(max_attempts):
+            try:
+                return operation()
+            except Exception as exc:
+                if not self._is_retryable(exc) or attempt == max_attempts - 1:
+                    raise
+                time.sleep(wait)
+                wait *= 2
+        raise RuntimeError("No se obtuvo respuesta del modelo.")
+
     @staticmethod
     def _is_retryable(exc: Exception) -> bool:
-        return "503" in str(exc) or "429" in str(exc)
+        message = str(exc).lower()
+        transient = ("503", "429", "unavailable", "timeout", "timed out", "deadline")
+        return any(token in message for token in transient)
