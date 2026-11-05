@@ -140,6 +140,7 @@ class CaseResult:
     author_recall_10: float
     author_coverage: float
     rejected: int
+    judged: int
     urls_valid: int
     ttft_ms: float
     gen_ms: float
@@ -199,9 +200,28 @@ def _is_rejected(answer: str) -> int:
     return int(any(marker in lowered for marker in _REJECTION_MARKERS))
 
 
-def _summarize(results: list[CaseResult], kinds: tuple[str, ...]) -> dict[str, float]:
+def _format_judge_context(chunks: list[Chunk]) -> str:
+    """Formatea el contexto con autor y sección (igual que la generación).
+
+    El juez necesita los metadatos: en consultas generales la afirmación clave
+    es "X trabaja en Y" y el nombre del investigador solo aparece en el autor
+    del fragmento, no en su contenido.
+    """
+    return "\n".join(
+        f"[{index}] (Investigador: {chunk.author} | Sección: {chunk.section.value})\n"
+        f"{chunk.content}"
+        for index, chunk in enumerate(chunks, start=1)
+    )
+
+
+def _summarize(
+    results: list[CaseResult],
+    kinds: tuple[str, ...],
+    judge_enabled: bool = False,
+) -> dict[str, float]:
     retrieval = [r for r in results if r.kind in kinds and r.n_relevant > 0]
     generation = [r for r in results if r.kind in kinds]
+    judged = [r for r in generation if r.judged]
     summary = {
         "casos": float(len(generation)),
         "precision_5": mean([r.precision_5 for r in retrieval]),
@@ -212,9 +232,11 @@ def _summarize(results: list[CaseResult], kinds: tuple[str, ...]) -> dict[str, f
         "ndcg_10": mean([r.ndcg_10 for r in retrieval]),
         "author_recall_10": mean([r.author_recall_10 for r in retrieval]),
         "cobertura_autores": mean([r.author_coverage for r in generation]),
-        "faithfulness": mean([r.faithfulness for r in generation if r.faithfulness > 0]),
-        "answer_relevancy": mean([r.answer_relevancy for r in generation if r.answer_relevancy > 0]),
-        "answer_correctness": mean([r.answer_correctness for r in generation if r.answer_correctness > 0]),
+        "faithfulness": mean([r.faithfulness for r in judged]) if judge_enabled else 0.0,
+        "answer_relevancy": mean([r.answer_relevancy for r in judged]) if judge_enabled else 0.0,
+        "answer_correctness": (
+            mean([r.answer_correctness for r in judged]) if judge_enabled else 0.0
+        ),
     }
     negatives = [r for r in results if r.kind == "negativa"]
     if negatives:
@@ -236,7 +258,7 @@ def _print_summary(
         ("relacional", ("relacional",)),
         ("comparativa", ("comparativa",)),
     ):
-        summary = _summarize(results, kinds)
+        summary = _summarize(results, kinds, judge_enabled)
         if summary["casos"] == 0:
             continue
         print(
@@ -255,7 +277,11 @@ def _print_summary(
     if not judge_enabled:
         print("juez desactivado (ejecutar con --judge para faithfulness/relevancy/correctness)")
     else:
-        summary = _summarize(results, ("puntual", "general", "relacional", "comparativa", "negativa"))
+        summary = _summarize(
+            results,
+            ("puntual", "general", "relacional", "comparativa", "negativa"),
+            judge_enabled,
+        )
         print(
             f"faithfulness={summary['faithfulness']:.3f} (>= {thresholds['faithfulness']:.2f}) "
             f"relevancy={summary['answer_relevancy']:.3f} (>= {thresholds['answer_relevancy']:.2f}) "
@@ -395,7 +421,7 @@ def run(args: argparse.Namespace) -> int:
             judge.evaluate(
                 case.query,
                 answer,
-                "\n".join(chunk.content for chunk in retrieved),
+                _format_judge_context(retrieved),
                 case.reference,
             )
             if judge
@@ -418,6 +444,7 @@ def run(args: argparse.Namespace) -> int:
                 author_recall_10=_author_recall_10(retrieved, authors, case),
                 author_coverage=_author_coverage(answer, case),
                 rejected=_is_rejected(answer),
+                judged=1 if scores is not None else 0,
                 urls_valid=int(all(chunk.url.value.startswith("http") for chunk in retrieved)),
                 ttft_ms=ttft_ms,
                 gen_ms=gen_ms,

@@ -18,9 +18,16 @@ _PROMPT = """Eres un evaluador experto de sistemas de recuperación aumentada po
 Evalúa la RESPUESTA usando únicamente el CONTEXTO recuperado y la RESPUESTA DE REFERENCIA.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON con tres claves numéricas entre 0 y 1:
-- "faithfulness": proporción de afirmaciones de la respuesta sustentadas por el contexto.
-- "answer_relevancy": qué tan pertinente es la respuesta respecto a la pregunta.
-- "answer_correctness": qué tan correcta es la respuesta frente a la referencia.
+- "faithfulness": proporción de afirmaciones de la RESPUESTA sustentadas por el CONTEXTO.
+- "answer_relevancy": qué tan pertinente es la RESPUESTA respecto a la PREGUNTA.
+- "answer_correctness": qué tan correcta es la RESPUESTA frente a la REFERENCIA.
+
+Reglas de evaluación:
+- Evalúa solo las afirmaciones que la respuesta hace; no exijas que sea exhaustiva.
+- Ignora el formato (tablas, viñetas, negritas) y las referencias numéricas entre corchetes.
+- Una afirmación está sustentada si el contexto la contiene de forma explícita o directamente inferible.
+- Si todas las afirmaciones están sustentadas, "faithfulness" debe ser 1.0.
+- Si la respuesta declara información insuficiente y el contexto no contiene la información, "faithfulness" debe ser 1.0.
 
 PREGUNTA:
 {question}
@@ -57,7 +64,7 @@ def _clamp(value: object) -> float:
 class Judge:
     """Evalúa respuestas con el proveedor de lenguaje del proyecto."""
 
-    def __init__(self, llm_provider: ILLMProvider, context_char_limit: int = 6000) -> None:
+    def __init__(self, llm_provider: ILLMProvider, context_char_limit: int = 20000) -> None:
         self._llm_provider = llm_provider
         self._context_char_limit = context_char_limit
 
