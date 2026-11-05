@@ -1,7 +1,7 @@
 """LLM provider port (ILLMProvider).
 
-Implemented by GeminiAdapter. Covers query analysis and generation,
-including streaming.
+Implemented by GeminiAdapter and GroqAdapter. Covers query analysis and
+generation, including streaming.
 """
 
 from collections.abc import Iterator

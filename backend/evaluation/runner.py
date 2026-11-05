@@ -37,7 +37,7 @@ from app.infrastructure.ingestion import (
     CsvIngestor,
     LogicalUnitChunker,
 )
-from app.infrastructure.llm import GeminiAdapter
+from app.infrastructure.llm import build_llm_provider
 from app.infrastructure.reranking import WeightedReranker
 from app.infrastructure.vectorstore import QdrantAdapter
 from evaluation.cases import EvalCase, build_cases
@@ -83,6 +83,14 @@ _REJECTION_MARKERS = (
     "no aparece",
     "sin informaci",
     "no es posible responder",
+    "no es posible identificar",
+    "no se identific",
+    "no menciona",
+    "no se menciona",
+    "no contiene informaci",
+    "no contiene datos",
+    "no incluye informaci",
+    "no se hall",
 )
 
 
@@ -284,6 +292,8 @@ def _monkeypatch_indexer_stages(
 
 def run(args: argparse.Namespace) -> int:
     settings = get_settings()
+    if args.provider:
+        settings = settings.model_copy(update={"llm_provider": args.provider})
     thresholds = dict(DEFAULT_THRESHOLDS)
     if args.thresholds and Path(args.thresholds).exists():
         thresholds.update(json.loads(Path(args.thresholds).read_text(encoding="utf-8")))
@@ -311,13 +321,7 @@ def run(args: argparse.Namespace) -> int:
     llm: ILLMProvider = (
         StubLLMProvider([researcher.name for researcher in researchers])
         if args.stub_llm
-        else GeminiAdapter(
-            api_key=settings.google_api_key.get_secret_value(),
-            model=settings.gemini_model,
-            timeout_ms=settings.llm_timeout_ms,
-            analysis_temperature=settings.llm_temperature_analysis,
-            generation_temperature=settings.llm_temperature_generation,
-        )
+        else build_llm_provider(settings)
     )
     reranker = WeightedReranker()
 
@@ -432,6 +436,8 @@ def run(args: argparse.Namespace) -> int:
             f"R@10={results[-1].recall_10:.2f} nDCG@10={results[-1].ndcg_10:.2f} "
             f"cov={results[-1].author_coverage:.2f} {status}"
         )
+        if args.delay > 0:
+            time.sleep(args.delay)
 
     monitor.stop()
     _print_summary(results, thresholds, timer, judge_enabled=judge is not None)
@@ -473,6 +479,18 @@ def main(argv: list[str] | None = None) -> int:
         "--skip-index",
         action="store_true",
         help="Reutiliza la coleccion existente si ya tiene los mismos fragmentos (ahorra la re-indexacion).",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=("gemini", "groq"),
+        default=None,
+        help="Proveedor del LLM; por defecto usa LLM_PROVIDER del .env.",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        help="Segundos de espera entre casos (util para respetar limites por minuto).",
     )
     parser.add_argument("--thresholds", default=None, help="JSON con umbrales personalizados.")
     return run(parser.parse_args(argv))

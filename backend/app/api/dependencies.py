@@ -9,6 +9,7 @@ from app.application.services.generation_service import GenerationService
 from app.application.services.retrieval_service import RetrievalService
 from app.application.use_cases.chat_use_case import ChatUseCase
 from app.core.config import get_settings
+from app.domain.interfaces.llm_provider import ILLMProvider
 from app.infrastructure.conversation import InMemoryConversationStore
 from app.infrastructure.embeddings import Bm25SparseEncoder, HuggingFaceAdapter
 from app.infrastructure.ingestion import (
@@ -18,7 +19,7 @@ from app.infrastructure.ingestion import (
     Indexer,
     LogicalUnitChunker,
 )
-from app.infrastructure.llm import GeminiAdapter
+from app.infrastructure.llm import build_llm_provider
 from app.infrastructure.reranking import WeightedReranker
 from app.infrastructure.vectorstore import QdrantAdapter
 
@@ -49,15 +50,8 @@ def _get_vector_store() -> QdrantAdapter:
 
 
 @lru_cache
-def _get_llm_provider() -> GeminiAdapter:
-    settings = get_settings()
-    return GeminiAdapter(
-        api_key=settings.google_api_key.get_secret_value(),
-        model=settings.gemini_model,
-        timeout_ms=settings.llm_timeout_ms,
-        analysis_temperature=settings.llm_temperature_analysis,
-        generation_temperature=settings.llm_temperature_generation,
-    )
+def _get_llm_provider() -> ILLMProvider:
+    return build_llm_provider(get_settings())
 
 
 @lru_cache

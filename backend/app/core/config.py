@@ -6,6 +6,7 @@ Resuelve REGLAS_PROYECTO.md §6.5: nunca hardcodear keys/paths.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,12 +19,15 @@ class Settings(BaseSettings):
     """Configuración única del sistema. Lee .env una sola vez.
 
     Attributes:
-        google_api_key: SecretStr para no exponer en logs.
+        llm_provider: Proveedor activo del LLM ("gemini" o "groq").
+        google_api_key: SecretStr para no exponer en logs (obligatoria con Gemini).
+        groq_api_key: SecretStr para no exponer en logs (obligatoria con Groq).
         qdrant_url: URL del servidor Qdrant.
         qdrant_collection: Nombre de la colección vectorial.
         embedding_model_name: Modelo de embeddings (Liskov: intercambiable).
         embedding_device: Dispositivo de ejecución del modelo de embeddings.
         gemini_model: Modelo generativo, con versión fija por reproducibilidad.
+        groq_model: Modelo generativo servido por Groq.
         llm_timeout_ms: Límite de tiempo por solicitud al modelo (ms).
         llm_temperature_analysis: Temperatura para la clasificación de consultas.
         llm_temperature_generation: Temperatura para la generación de respuestas.
@@ -35,10 +39,20 @@ class Settings(BaseSettings):
     """
 
     # --- LLM / API Keys ---
-    google_api_key: SecretStr = Field(
-        ...,
+    llm_provider: Literal["gemini", "groq"] = Field(
+        default="gemini",
+        alias="LLM_PROVIDER",
+        description="Proveedor del LLM: gemini o groq (Strategy vía ILLMProvider).",
+    )
+    google_api_key: SecretStr | None = Field(
+        default=None,
         alias="GOOGLE_API_KEY",
-        description="API key de Google Gemini. Obligatoria.",
+        description="API key de Google Gemini. Obligatoria si LLM_PROVIDER=gemini.",
+    )
+    groq_api_key: SecretStr | None = Field(
+        default=None,
+        alias="GROQ_API_KEY",
+        description="API key de Groq. Obligatoria si LLM_PROVIDER=groq.",
     )
 
     # --- Vector Store ---
@@ -68,6 +82,11 @@ class Settings(BaseSettings):
         default="gemini-3.8-flash",
         alias="GEMINI_MODEL",
         description="Modelo generativo con versión fija (reproducibilidad).",
+    )
+    groq_model: str = Field(
+        default="openai/gpt-oss-120b",
+        alias="GROQ_MODEL",
+        description="Modelo generativo servido por Groq (versión fija).",
     )
 
     # --- LLM optimization (METODOS_OPTIMIZACION.md) ---
