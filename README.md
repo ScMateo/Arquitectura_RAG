@@ -14,7 +14,7 @@ un buscador tradicional.
 |---|---|---|
 | Python | 3.12 | Backend, ingesta y evaluación |
 | Docker + Docker Compose | Docker 29.x | Base vectorial Qdrant |
-| Clave de API de Google (Gemini) | — | Clasificación y generación (LLM) |
+| Clave de API de Google (Gemini) o de Groq | — | Clasificación y generación (LLM) |
 | Node.js | 18+ (opcional) | Frontend (aún no implementado) |
 
 Recursos: ~2 GB de RAM libre (el modelo de embeddings `multilingual-e5-base`
@@ -55,7 +55,7 @@ python3.12 -m venv venv
 source venv/bin/activate
 pip install -r backend/requirements.txt
 
-# 4. Configuración (edita GOOGLE_API_KEY; el resto trae defaults)
+# 4. Configuración (copia .env.example, elige LLM_PROVIDER y define su API key)
 cp .env.example .env
 
 # 5. Indexar un CSV conforme al contrato de datos
@@ -89,6 +89,27 @@ curl -X POST http://localhost:8000/api/chat \
 
 Cuerpo de las peticiones de chat: `{"message": "...", "session_id": "opcional"}`.
 
+### Proveedor del LLM
+
+El sistema es agnóstico al proveedor: `ILLMProvider` tiene dos adaptadores y la
+selección se hace por configuración, sin tocar dominio ni aplicación.
+
+```bash
+# Gemini (por defecto)
+LLM_PROVIDER=gemini
+GOOGLE_API_KEY=...
+GEMINI_MODEL=gemini-3.8-flash
+
+# Groq (nivel gratuito con límite alto; útil para pruebas de usuario)
+LLM_PROVIDER=groq
+GROQ_API_KEY=...
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
+Solo se exige la API key del proveedor activo. El adaptador de Groq usa salida
+JSON validada con Pydantic y reintentos con retroceso exponencial que respetan
+el header `Retry-After`.
+
 ## Calidad y pruebas
 
 ```bash
@@ -119,17 +140,23 @@ PYTHONPATH=backend python scripts/evaluate.py --judge
 # Subconjunto estratificado (p. ej. 2 casos por tipo = 10 casos), útil con la cuota gratuita
 PYTHONPATH=backend python scripts/evaluate.py --per-kind 2
 
+# Con proveedor Groq y pausas para respetar el límite de tokens por minuto
+PYTHONPATH=backend python scripts/evaluate.py \
+  --provider groq --per-kind 2 --judge --delay 35 --skip-index
+
 # Modo offline sin cuota (LLM simulado): valida la mecánica y las métricas de recuperación
 PYTHONPATH=backend python scripts/evaluate.py --stub-llm
 ```
 
 Opciones: `--corpus`, `--output`, `--collection`, `--judge`, `--per-kind`,
-`--limit`, `--thresholds`, `--stub-llm`. Los resultados se escriben en
-`data/processed/evaluation_results.csv`.
+`--limit`, `--thresholds`, `--stub-llm`, `--provider`, `--delay`, `--skip-index`.
+Los resultados se escriben en `data/processed/evaluation_results.csv`.
 
 > **Cuota de la API.** El nivel gratuito de `gemini-3.8-flash` permite ≈ 20
 > solicitudes por día y cada caso consume 2 (sin juez) o 3 (con juez). Para la
 > corrida completa de 40 casos se requiere una clave con facturación habilitada.
+> Como alternativa gratuita, Groq ofrece ~1000 solicitudes/día y 8000
+> tokens/minuto para `openai/gpt-oss-120b`; con `--delay` se evita el error 429.
 
 ## Datos
 

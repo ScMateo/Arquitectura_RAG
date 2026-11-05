@@ -37,7 +37,7 @@ flowchart TB
 
     subgraph INF["Capa de Infraestructura (infrastructure)"]
         D1["vectorstore / QdrantAdapter"]
-        D2["llm / GeminiAdapter"]
+        D2["llm / adaptadores (Gemini, Groq)"]
         D3["embeddings / HuggingFaceAdapter"]
         D4["ingestion"]
         D5["repositories"]
@@ -74,7 +74,7 @@ La regla de dependencia indica que `api -> application -> domain <- infrastructu
 | Módulo | Responsabilidad | Implementa |
 |---|---|---|
 | `vectorstore` | `QdrantAdapter`: búsqueda híbrida, filtrado por metadatos, indexación | `IVectorStore` |
-| `llm` | `GeminiAdapter`: generación, clasificación, streaming, caché de contexto | `ILLMProvider` |
+| `llm` | `GeminiAdapter` y `GroqAdapter`: generación, clasificación, streaming; `build_llm_provider` selecciona por `LLM_PROVIDER` | `ILLMProvider` |
 | `embeddings` | `HuggingFaceAdapter`: generación de embeddings con prefijos | `IEmbeddingProvider` |
 | `ingestion` | `CsvReader`, `Cleaner`, `Chunker`, `Normalizer`, `Indexer` | `IIngestor`, `IChunker`, `INormalizer` |
 | `repositories` | `CvLACRepository`: acceso a los datos de origen | — |
@@ -107,7 +107,7 @@ flowchart LR
     subgraph INF["Infraestructura — adaptadores"]
         Q1["QdrantAdapter"]
         Q2["HuggingFaceAdapter"]
-        Q3["GeminiAdapter"]
+        Q3["GeminiAdapter / GroqAdapter"]
         Q4["CsvIngestor"]
         Q5["InMemoryConversationStore"]
         Q6["AcronymNormalizer"]
@@ -180,7 +180,7 @@ Genera la respuesta a partir del contexto recuperado.
 ```mermaid
 flowchart LR
     A["Contexto (fragmentos + historial)"] --> B["PromptBuilder"]
-    B --> C["GeminiAdapter<br/>(streaming, caché de contexto)"]
+    B --> C["Adaptador LLM<br/>(Gemini o Groq, streaming)"]
     C --> D["Respuesta"]
     C --> E["Fuentes (HU-10)"]
 ```
@@ -188,7 +188,7 @@ flowchart LR
 Etapas:
 
 1. **Composición del prompt:** el `PromptBuilder` combina la instrucción de sistema, el contexto recuperado, el historial conversacional y la consulta.
-2. **Generación:** el `GeminiAdapter` genera la respuesta de manera incremental, con caché implícita del prefijo del sistema y reintentos con espera exponencial.
+2. **Generación:** el adaptador del proveedor (`GeminiAdapter` o `GroqAdapter`) genera la respuesta de manera incremental, con reintentos y espera exponencial.
 3. **Trazabilidad:** se extraen las fuentes empleadas para acompañar la respuesta (HU-10).
 
 ### 5.4 Flujo Completo (End-to-End)
@@ -205,7 +205,7 @@ sequenceDiagram
     participant V as QdrantAdapter
     participant W as WeightedReranker
     participant G as GenerationService
-    participant L as GeminiAdapter
+    participant L as LLM (Gemini/Groq)
     participant S as ConversationStore
 
     U->>A: POST /api/chat {message}

@@ -13,7 +13,7 @@ Sistema RAG como alternativa al buscador tradicional de CvLAC. Debe cumplir:
 - **HE.003 Consultas:** HU-04 (específica), HU-05 (general)
 - **HE.004 Razonamiento:** HU-06 (libre), HU-07 (historial + análisis), HU-09 (acrónimos)
 
-Cualquier cambio debe mapear explícitamente a una HU y a una tarea del backlog del Excel.
+Cualquier cambio debe mapear explícitamente a una HU y a una tarea del tablero de GitHub Projects.
 
 ---
 
@@ -34,7 +34,7 @@ Arquitectura_RAG/
 │   │   └── use_cases/      # Un caso por historia: ChatUseCase, SummarizeUseCase, CiteSourcesUseCase
 │   ├── infrastructure/     # Adaptadores (implementan domain/interfaces)
 │   │   ├── vectorstore/    # QdrantAdapter
-│   │   ├── llm/            # GeminiAdapter
+│   │   ├── llm/            # GeminiAdapter / GroqAdapter
 │   │   ├── ingestion/      # cleaner.py, chunker.py, normalizer.py (HU-09)
 │   │   └── repositories/   # CvLACRepository
 │   └── tests/unit|integration/
@@ -234,7 +234,7 @@ main (protegida)
 
 ## 11. Checklist Antes de Merge
 
-- [ ] ¿Mapea a HU/HE y tarea del Excel?
+- [ ] ¿Mapea a HU/HE y tarea del tablero de GitHub Projects?
 - [ ] ¿Sigue Clean Architecture (sin import circular)?
 - [ ] ¿Nombres según §4?
 - [ ] ¿Docstring Google/JSDoc con Args/Returns/HU?
