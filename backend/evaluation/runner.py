@@ -21,6 +21,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from qdrant_client import QdrantClient
+
 from app.application.services.generation_service import GenerationService
 from app.application.services.retrieval_service import RetrievalService
 from app.core.config import get_settings
@@ -38,8 +40,6 @@ from app.infrastructure.ingestion import (
 from app.infrastructure.llm import GeminiAdapter
 from app.infrastructure.reranking import WeightedReranker
 from app.infrastructure.vectorstore import QdrantAdapter
-from qdrant_client import QdrantClient
-
 from evaluation.cases import EvalCase, build_cases
 from evaluation.corpus import THEMES, build_researchers, write_csv
 from evaluation.judge import Judge
@@ -326,16 +326,24 @@ def run(args: argparse.Namespace) -> int:
     monitor.start()
 
     client = QdrantClient(url=settings.qdrant_url)
-    if client.collection_exists(args.collection):
-        client.delete_collection(args.collection)
 
     print("indexando corpus de evaluacion...")
     index_start = time.perf_counter()
     chunks = list(ingestor.ingest(str(corpus_path)))
-    vectors = embedding.embed_documents([chunk.content for chunk in chunks])
-    vector_store.add(chunks, vectors)
-    index_seconds = time.perf_counter() - index_start
-    print(f"indexado: {len(chunks)} fragmentos en {index_seconds:.1f}s")
+
+    reuse = False
+    if args.skip_index and client.collection_exists(args.collection):
+        reuse = client.get_collection(args.collection).points_count == len(chunks)
+
+    if reuse:
+        print(f"reutilizando coleccion '{args.collection}' ({len(chunks)} fragmentos)")
+    else:
+        if client.collection_exists(args.collection):
+            client.delete_collection(args.collection)
+        vectors = embedding.embed_documents([chunk.content for chunk in chunks])
+        vector_store.add(chunks, vectors)
+        index_seconds = time.perf_counter() - index_start
+        print(f"indexado: {len(chunks)} fragmentos en {index_seconds:.1f}s")
 
     _monkeypatch_indexer_stages(timer, normalizer, llm, embedding, vector_store, reranker)
     retrieval_service = RetrievalService(
@@ -460,6 +468,11 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=0,
         help="Selecciona hasta N casos por tipo (0 = todos). Util para respetar la cuota de API.",
+    )
+    parser.add_argument(
+        "--skip-index",
+        action="store_true",
+        help="Reutiliza la coleccion existente si ya tiene los mismos fragmentos (ahorra la re-indexacion).",
     )
     parser.add_argument("--thresholds", default=None, help="JSON con umbrales personalizados.")
     return run(parser.parse_args(argv))
