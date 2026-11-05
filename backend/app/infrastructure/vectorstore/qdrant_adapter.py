@@ -59,11 +59,11 @@ class QdrantAdapter:
         self,
         query_text: str,
         query_vector: Sequence[float],
-        author: str | None = None,
+        authors: Sequence[str] | None = None,
         section: Section | None = None,
         top_k: int = 20,
     ) -> list[Chunk]:
-        query_filter = self._build_filter(author, section)
+        query_filter = self._build_filter(authors, section)
         if self._sparse_encoder is None:
             response = self._client.query_points(
                 collection_name=self._collection,
@@ -131,14 +131,18 @@ class QdrantAdapter:
 
     def _build_filter(
         self,
-        author: str | None,
+        authors: Sequence[str] | None,
         section: Section | None,
     ) -> models.Filter | None:
         conditions: list[models.FieldCondition] = []
-        if author:
-            conditions.append(
-                models.FieldCondition(key="author", match=models.MatchValue(value=author))
+        if authors:
+            names = list(authors)
+            match = (
+                models.MatchValue(value=names[0])
+                if len(names) == 1
+                else models.MatchAny(any=names)
             )
+            conditions.append(models.FieldCondition(key="author", match=match))
         if section:
             conditions.append(
                 models.FieldCondition(key="section", match=models.MatchValue(value=section.value))

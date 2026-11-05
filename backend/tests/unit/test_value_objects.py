@@ -40,6 +40,15 @@ def test_query_analysis_defaults_name_to_none() -> None:
     assert analysis.researcher_name is None
 
 
+def test_query_analysis_keeps_multiple_researcher_names() -> None:
+    analysis = QueryAnalysis(
+        query_type=QueryType.SPECIFIC,
+        researcher_names=("Juan Perez", "Ana Lopez"),
+    )
+    assert analysis.researcher_name == "Juan Perez"
+    assert analysis.researcher_names == ("Juan Perez", "Ana Lopez")
+
+
 def test_message_role_values() -> None:
     assert MessageRole.USER == "user"
     assert MessageRole.ASSISTANT == "assistant"

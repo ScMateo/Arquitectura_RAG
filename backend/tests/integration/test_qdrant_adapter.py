@@ -66,7 +66,7 @@ def test_author_filter_is_applied(adapter: QdrantAdapter) -> None:
         [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
     )
 
-    results = adapter.search("x", [1.0, 0.0, 0.0], author="Ana", top_k=10)
+    results = adapter.search("x", [1.0, 0.0, 0.0], authors=["Ana"], top_k=10)
 
     assert results
     assert all(chunk.author == "Ana" for chunk in results)
@@ -125,8 +125,24 @@ def test_hybrid_search_applies_author_filter(hybrid_adapter: QdrantAdapter) -> N
         [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
     )
 
-    results = hybrid_adapter.search("salud", [1.0, 0.0, 0.0], author="Luis", top_k=10)
+    results = hybrid_adapter.search("salud", [1.0, 0.0, 0.0], authors=["Luis"], top_k=10)
 
     assert results
     assert all(chunk.author == "Luis" for chunk in results)
+
+
+def test_multi_author_filter_is_applied(adapter: QdrantAdapter) -> None:
+    adapter.add(
+        [
+            make_chunk(content="a", author="Ana"),
+            make_chunk(content="b", author="Luis"),
+            make_chunk(content="c", author="Sara"),
+        ],
+        [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+    )
+
+    results = adapter.search("x", [1.0, 0.0, 0.0], authors=["Ana", "Luis"], top_k=10)
+
+    assert results
+    assert {chunk.author for chunk in results} == {"Ana", "Luis"}
 

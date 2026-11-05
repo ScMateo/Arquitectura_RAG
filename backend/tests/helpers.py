@@ -71,14 +71,14 @@ class FakeVectorStore:
         self,
         query_text: str,
         query_vector: Sequence[float],
-        author: str | None = None,
+        authors: Sequence[str] | None = None,
         section: Section | None = None,
         top_k: int = 20,
     ) -> list[Chunk]:
         self.last_search = {
             "query_text": query_text,
             "query_vector": list(query_vector),
-            "author": author,
+            "authors": authors,
             "section": section,
             "top_k": top_k,
         }

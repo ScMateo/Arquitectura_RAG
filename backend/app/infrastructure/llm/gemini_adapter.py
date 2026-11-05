@@ -10,7 +10,7 @@ from typing import Literal
 
 from google import genai
 from google.genai import types
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ...domain.value_objects.query_analysis import QueryAnalysis
 from ...domain.value_objects.query_type import QueryType
@@ -20,7 +20,7 @@ class _QueryAnalysisSchema(BaseModel):
     """Esquema de salida estructurada para el análisis de consultas."""
 
     type: Literal["specific", "general"]
-    researcher_name: str | None = None
+    researcher_names: list[str] = Field(default_factory=list)
 
 
 class GeminiAdapter:
@@ -45,11 +45,11 @@ class GeminiAdapter:
     def analyze_query(self, query: str) -> QueryAnalysis:
         prompt = (
             "Analiza la siguiente consulta sobre hojas de vida CvLAC.\n"
-            "Determina el tipo: 'specific' si menciona a un investigador "
-            "específico por su nombre, o 'general' si es una consulta "
-            "temática o general.\n"
-            "Si el tipo es 'specific', indica el nombre del investigador "
-            "en researcher_name.\n\n"
+            "Determina el tipo: 'specific' si menciona a uno o más "
+            "investigadores por su nombre, o 'general' si es una consulta "
+            "temática.\n"
+            "Si el tipo es 'specific', lista en researcher_names los nombres "
+            "de todos los investigadores mencionados.\n\n"
             f"Consulta: {query}"
         )
 
@@ -71,7 +71,7 @@ class GeminiAdapter:
         result = _QueryAnalysisSchema.model_validate_json(raw)
         return QueryAnalysis(
             query_type=QueryType(result.type),
-            researcher_name=result.researcher_name,
+            researcher_names=tuple(result.researcher_names),
         )
 
     def generate(self, prompt: str) -> str:

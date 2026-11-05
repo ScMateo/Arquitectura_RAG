@@ -35,20 +35,20 @@ class RetrievalService:
         analysis = self._llm_provider.analyze_query(normalized)
         query_vector = self._embedding_provider.embed_query(normalized)
 
-        author = (
-            analysis.researcher_name
+        authors = (
+            tuple(analysis.researcher_names)
             if analysis.query_type == QueryType.SPECIFIC
-            else None
+            else ()
         )
 
         chunks = self._vector_store.search(
             query_text=normalized,
             query_vector=query_vector,
-            author=author,
+            authors=authors or None,
             top_k=self._top_k_retrieval,
         )
         # Solo en consultas a un investigador concreto la sección solicitada es
         # un criterio fiable de ordenación; en consultas generales se mantiene la
         # prioridad fija de sección.
-        reranked = self._reranker.rerank(chunks, normalized if author else None)
+        reranked = self._reranker.rerank(chunks, normalized if authors else None)
         return reranked[: self._top_k_final]

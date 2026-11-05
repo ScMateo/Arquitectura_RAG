@@ -27,7 +27,7 @@ class IVectorStore(Protocol):
         self,
         query_text: str,
         query_vector: Sequence[float],
-        author: str | None = None,
+        authors: Sequence[str] | None = None,
         section: Section | None = None,
         top_k: int = 20,
     ) -> list[Chunk]:
@@ -36,7 +36,7 @@ class IVectorStore(Protocol):
         Args:
             query_text: Texto de la consulta para la componente léxica.
             query_vector: Vector denso de la consulta.
-            author: Filtro opcional por investigador (HU-04).
+            authors: Filtro opcional por uno o más investigadores (HU-04).
             section: Filtro opcional por sección.
             top_k: Número máximo de fragmentos a recuperar.
 

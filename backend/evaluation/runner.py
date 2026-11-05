@@ -99,13 +99,13 @@ class StubLLMProvider:
 
     def analyze_query(self, query: str) -> QueryAnalysis:
         lowered = query.lower()
-        for name in self._names:
-            if name.lower() in lowered:
-                return QueryAnalysis(
-                    query_type=QueryType.SPECIFIC,
-                    researcher_name=name,
-                )
-        return QueryAnalysis(query_type=QueryType.GENERAL, researcher_name=None)
+        matched = [name for name in self._names if name.lower() in lowered]
+        if matched:
+            return QueryAnalysis(
+                query_type=QueryType.SPECIFIC,
+                researcher_names=tuple(matched),
+            )
+        return QueryAnalysis(query_type=QueryType.GENERAL)
 
     def generate(self, prompt: str) -> str:
         return "respuesta simulada"

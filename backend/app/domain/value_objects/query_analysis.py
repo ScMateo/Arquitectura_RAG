@@ -11,8 +11,15 @@ class QueryAnalysis:
 
     Attributes:
         query_type: Tipo de consulta (específica o general).
-        researcher_name: Nombre del investigador si la consulta es específica.
+        researcher_names: Nombres de los investigadores mencionados cuando la
+            consulta es específica; puede ser más de uno en consultas
+            comparativas (p. ej. "¿quién tiene más artículos, X o Y?").
     """
 
     query_type: QueryType
-    researcher_name: str | None = None
+    researcher_names: tuple[str, ...] = ()
+
+    @property
+    def researcher_name(self) -> str | None:
+        """Primer investigador, o None si la consulta no nombra a ninguno."""
+        return self.researcher_names[0] if self.researcher_names else None

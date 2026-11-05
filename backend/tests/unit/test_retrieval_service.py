@@ -51,14 +51,14 @@ def test_retrieve_normalizes_and_searches_without_author_for_general() -> None:
     assert normalizer.seen == ["consulta"]
     assert store.last_search is not None
     assert store.last_search["query_text"] == "CONSULTA"
-    assert store.last_search["author"] is None
+    assert store.last_search["authors"] is None
     assert len(result) == 1
 
 
 def test_retrieve_applies_author_filter_for_specific_query() -> None:
     normalizer = _SpyNormalizer()
     llm = FakeLLMProvider(
-        analysis=QueryAnalysis(query_type=QueryType.SPECIFIC, researcher_name="Juan Perez")
+        analysis=QueryAnalysis(query_type=QueryType.SPECIFIC, researcher_names=("Juan Perez",))
     )
     store = FakeVectorStore(results=[make_chunk()])
     service = _build_service(normalizer, llm, store)
@@ -66,13 +66,13 @@ def test_retrieve_applies_author_filter_for_specific_query() -> None:
     service.retrieve("formacion de juan perez")
 
     assert store.last_search is not None
-    assert store.last_search["author"] == "Juan Perez"
+    assert store.last_search["authors"] == ("Juan Perez",)
 
 
 def test_retrieve_prioritizes_requested_section_for_specific_query() -> None:
     normalizer = _SpyNormalizer()
     llm = FakeLLMProvider(
-        analysis=QueryAnalysis(query_type=QueryType.SPECIFIC, researcher_name="Juan Perez")
+        analysis=QueryAnalysis(query_type=QueryType.SPECIFIC, researcher_names=("Juan Perez",))
     )
     store = FakeVectorStore(
         results=[
@@ -96,3 +96,18 @@ def test_retrieve_truncates_to_top_k_final() -> None:
     result = service.retrieve("q")
 
     assert len(result) == 5
+
+
+def test_retrieve_applies_multi_author_filter_for_comparative_query() -> None:
+    normalizer = _SpyNormalizer()
+    names = ("Juan Perez", "Ana Lopez", "Luis Gomez")
+    llm = FakeLLMProvider(
+        analysis=QueryAnalysis(query_type=QueryType.SPECIFIC, researcher_names=names)
+    )
+    store = FakeVectorStore(results=[make_chunk()])
+    service = _build_service(normalizer, llm, store)
+
+    service.retrieve("quien tiene mas articulos, Juan Perez, Ana Lopez o Luis Gomez")
+
+    assert store.last_search is not None
+    assert store.last_search["authors"] == names
